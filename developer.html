@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CyberShield AI — Intelligent Cyber Threat Detection & Prediction</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-950 text-white p-4 sm:p-8">
+<div class="max-w-7xl mx-auto">
+  <div class="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center mb-6">
+    <div>
+      <p class="text-cyan-400 text-xs uppercase tracking-widest font-semibold">Developer Console</p>
+      <h1 class="text-2xl font-bold mt-1">Threat Scan History</h1>
+      <p class="text-slate-400 text-sm mt-1">Restricted to developer accounts.</p>
+      <p id="developer-user" class="text-xs text-emerald-400 mt-2"></p>
+    </div>
+    <div class="flex gap-2">
+      <a href="/developer/dashboard" class="bg-slate-800 border border-slate-700 px-4 py-2 rounded-lg text-sm">Dashboard</a>
+      <a href="/developer-logout" class="bg-red-600 hover:bg-red-500 px-4 py-2 rounded-lg text-sm">Developer Logout</a>
+    </div>
+  </div>
+
+  <div class="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden shadow-xl">
+    <div class="p-4 border-b border-slate-700 flex justify-between items-center">
+      <h2 class="font-semibold">All Recorded Scans</h2>
+      <button onclick="loadHistory()" class="text-xs bg-cyan-600 hover:bg-cyan-500 px-3 py-2 rounded-lg">Refresh</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-sm">
+        <thead class="bg-slate-800 text-slate-300">
+          <tr>
+            <th class="p-3">ID</th>
+            <th class="p-3">Time</th>
+            <th class="p-3">Source / Input</th>
+            <th class="p-3">Prediction</th>
+            <th class="p-3">Confidence</th>
+          </tr>
+        </thead>
+        <tbody id="history" class="divide-y divide-slate-800"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  const token = sessionStorage.getItem('cybershield_tab_token');
+  if (!token) {
+    window.location.replace('/login?mode=developer');
+    return;
+  }
+
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = function (resource, options = {}) {
+    const headers = new Headers(options.headers || {});
+    headers.set('X-Tab-Session', sessionStorage.getItem('cybershield_tab_token') || '');
+    return nativeFetch(resource, { ...options, headers });
+  };
+
+  nativeFetch('/api/me', { cache: 'no-store', headers: { 'X-Tab-Session': token } })
+    .then(async response => {
+      if (!response.ok) throw new Error('Tab login expired');
+      const identity = await response.json();
+      if (identity.role !== 'developer') throw new Error('Developer login required');
+    })
+    .catch(() => {
+      sessionStorage.removeItem('cybershield_tab_token');
+      window.location.replace('/login?mode=developer');
+    });
+
+  document.addEventListener('click', function (event) {
+    const link = event.target.closest('a[href="/developer-logout"]');
+    if (!link) return;
+    event.preventDefault();
+    sessionStorage.removeItem('cybershield_tab_token');
+    window.location.href = '/login?mode=developer';
+  });
+})();
+
+async function loadHistory() {
+  const body = document.getElementById('history');
+
+  try {
+    const me = await fetch('/api/me', { cache: 'no-store' });
+    const user = await me.json();
+    if (me.ok && user.developer_logged_in) {
+      document.getElementById('developer-user').textContent =
+        `Developer: ${user.developer_username}`;
+    }
+  } catch (e) {
+    console.error(e);
+  }
+  body.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400">Loading...</td></tr>';
+  const response = await fetch('/api/logs?limit=200');
+  if (response.status === 403) {
+    body.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-red-400">Developer access required.</td></tr>';
+    return;
+  }
+  const data = await response.json();
+  if (!response.ok) {
+    body.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-red-400">${data.error || 'Failed to load history'}</td></tr>`;
+    return;
+  }
+  body.innerHTML = data.logs.map(row => `
+    <tr class="hover:bg-slate-800/60">
+      <td class="p-3 text-slate-400">${row.id}</td>
+      <td class="p-3 whitespace-nowrap text-slate-400">${new Date(row.timestamp).toLocaleString()}</td>
+      <td class="p-3 max-w-xl break-words">${escapeHtml(row.source)}</td>
+      <td class="p-3 font-semibold">${escapeHtml(row.prediction)}</td>
+      <td class="p-3">${Number(row.confidence).toFixed(2)}%</td>
+    </tr>`).join('');
+}
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;'
+  }[c]));
+}
+loadHistory();
+</script>
+</body>
+</html>

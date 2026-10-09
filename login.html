@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Cyber Login</title>
+<link rel="icon" type="image/png" href="/logo.png?v=2">
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<style>.logo-glow{filter:drop-shadow(0 0 10px rgba(34,211,238,.65))}</style>
+</head>
+<body class="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">
+<div class="w-full max-w-md">
+<div class="bg-slate-900/95 border border-slate-700 rounded-2xl shadow-2xl p-6 sm:p-7">
+<div class="text-center mb-8">
+<div class="mx-auto flex items-center justify-center w-20 h-20 rounded-2xl bg-cyan-500/5 border border-cyan-500/60 mb-4">
+<svg class="w-14 h-14 logo-glow" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M50 7L78 18V43C78 63 66 80 50 90C34 80 22 63 22 43V18L50 7Z" stroke="#22d3ee" stroke-width="5" stroke-linejoin="round"/>
+<circle cx="50" cy="30" r="5" fill="#67e8f9"/><circle cx="34" cy="43" r="5" fill="#67e8f9"/><circle cx="66" cy="43" r="5" fill="#67e8f9"/><circle cx="50" cy="57" r="5" fill="#67e8f9"/><circle cx="50" cy="72" r="5" fill="#67e8f9"/>
+<path d="M50 35L34 43M50 35L66 43M34 48L50 57M66 48L50 57M50 62V72" stroke="#67e8f9" stroke-width="3" stroke-linecap="round"/>
+</svg>
+</div>
+<h1 id="pageTitle" class="text-2xl font-bold">AI Cyber <span class="text-cyan-400">Threat Intelligence</span></h1>
+<p id="pageSubtitle" class="text-slate-400 text-sm mt-2">Secure dashboard login</p>
+</div>
+
+<form id="loginForm" class="space-y-4">
+<div>
+<label class="block text-sm text-slate-300 mb-2">Username</label>
+<div class="relative"><i class="fas fa-user absolute left-4 top-4 text-slate-500"></i>
+<input id="username" type="text" autocomplete="username" required class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-12 pr-4 py-3 outline-none focus:border-cyan-400 text-white" placeholder="Enter username"></div>
+</div>
+<div>
+<label class="block text-sm text-slate-300 mb-2">Password</label>
+<div class="relative"><i class="fas fa-lock absolute left-4 top-4 text-slate-500"></i>
+<input id="password" type="password" autocomplete="current-password" required class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-12 pr-12 py-3 outline-none focus:border-cyan-400 text-white" placeholder="Enter password">
+<button type="button" id="togglePassword" class="absolute right-4 top-4 text-slate-500 hover:text-white"><i class="fas fa-eye"></i></button></div>
+</div>
+<div id="error" class="hidden bg-red-500/10 border border-red-500/40 text-red-300 rounded-lg p-3 text-sm"></div>
+<button id="loginButton" type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 rounded-lg py-3 font-semibold transition"><i class="fas fa-right-to-bracket mr-2"></i> Login</button>
+</form>
+
+<div class="flex items-center justify-center gap-4 mt-4 text-sm">
+<a id="normalLoginLink" href="/login" class="text-cyan-400 hover:text-cyan-300">Normal User Login</a>
+<span class="text-slate-600">|</span>
+<a href="/register" class="text-cyan-400 hover:text-cyan-300">Create Account</a>
+</div>
+
+<div class="text-center mt-4">
+<a id="developerLoginLink"
+   href="/login?mode=developer"
+   class="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition">
+    <i class="fas fa-code"></i>
+    Developer Mode
+</a>
+</div>
+<p class="text-center text-xs text-slate-500 mt-4">Authorized users only · Developer history is restricted</p>
+</div></div>
+
+<script>
+const form=document.getElementById('loginForm');
+const errorBox=document.getElementById('error');
+const button=document.getElementById('loginButton');
+const params=new URLSearchParams(window.location.search);
+const mode=(params.get('mode')||'user').toLowerCase();
+
+const developerLoginLink = document.getElementById('developerLoginLink');
+
+if(mode === 'developer'){
+ document.getElementById('pageTitle').innerHTML='AI Cyber <span class="text-cyan-400">Developer Mode</span>';
+ document.getElementById('pageSubtitle').textContent='Secure developer console login';
+ developerLoginLink.style.display = 'none';
+}
+
+document.getElementById('togglePassword').onclick=()=>{
+ const input=document.getElementById('password'), icon=document.querySelector('#togglePassword i');
+ input.type=input.type==='password'?'text':'password';
+ icon.classList.toggle('fa-eye'); icon.classList.toggle('fa-eye-slash');
+};
+
+form.addEventListener('submit',async(e)=>{
+ e.preventDefault(); errorBox.classList.add('hidden'); button.disabled=true;
+ button.innerHTML='<i class="fas fa-spinner fa-spin mr-2"></i> Signing in...';
+ try{
+  const response=await fetch('/login',{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   credentials:'same-origin',
+   body:JSON.stringify({
+    username:document.getElementById('username').value.trim(),
+    password:document.getElementById('password').value,
+    mode:mode
+   })
+  });
+  const data=await response.json();
+  if(!response.ok) throw new Error(data.error||'Login failed.');
+  if(!data.tab_token) throw new Error('The server did not create a tab login. Please try again.');
+  sessionStorage.setItem('cybershield_tab_token', data.tab_token);
+  window.location.href=data.redirect||'/';
+ }catch(err){
+  errorBox.textContent=err.message; errorBox.classList.remove('hidden');
+  button.disabled=false;
+  button.innerHTML='<i class="fas fa-right-to-bracket mr-2"></i> Login';
+ }
+});
+</script>
+</body>
+</html>

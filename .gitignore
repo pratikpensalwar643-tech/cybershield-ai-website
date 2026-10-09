@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+.git
+Microsoft.Services.Store.winmd
+app.py backup.py.pycreate_user.py
+README_RESET_ONLY.txt
